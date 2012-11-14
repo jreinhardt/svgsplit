@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+from xml.dom.minidom import parse
+from sys import argv,exit
+from os.path import splitext
+
+if len(argv) < 2:
+	print "Split an Inkscape SVG file into several SVG files, each containing one layer."
+	print "It is possible to specify which layers are to be considered, otherwise all are split out"
+	print "svgsplit sourcefile [layer1 layer2]"
+
+dom = parse(argv[1])
+
+wanted_layers = argv[2:]
+all_layers = len(wanted_layers) == 0
+
+base,ext = splitext(argv[1])
+
+for doc in dom.getElementsByTagName("svg"):
+	layers = []
+	for child in doc.childNodes:
+		if child.localName == "g":
+			layers.append(doc.removeChild(child))
+	for layer in layers:
+		doc.appendChild(layer)
+		layername = layer.getAttribute("inkscape:label")
+		layer.setAttribute("style","display:inline")
+		if all_layers or layername in wanted_layers:
+			outname = base + "_" + layername + ext
+			fid = open(outname,"w")
+			doc.setAttribute("sodipodi:docname",outname)
+			doc.writexml(fid)
+			fid.close()
+			if layername in wanted_layers:
+				wanted_layers.remove(layername)
+		doc.removeChild(layer).unlink()
+dom.unlink()
+
+if wanted_layers:
+	print "Not all selected layers could be found:", wanted_layers
+	exit(1)
+
+exit(0)
